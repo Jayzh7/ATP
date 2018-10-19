@@ -1,0 +1,76 @@
+% how to set a timer of 3 seconds
+% can two components share a same action
+% need to code for input compoenents?
+% how to input the current speed..
+
+sort 
+  Pulses = struct sixty | eighty | onethirty | oneforty | special | beacon;
+
+map
+  no_signal: Nat;
+
+eqn
+  no_signal = 40;
+
+act
+  send_limit, receive_limit, speed_limit: Nat;
+
+  receive_current_speed, send_current_speed, current_speed: Nat;
+
+  send_pulses, receive_pulses, speed_pulses: Pulses; 
+
+  bell_ring, ring_bell, bell;
+
+  speeding, safe_speed;
+
+  instru_emergency_brake, receive_emergency_brake, emergency_brake;
+
+  ATPActive, ATPInactive;
+
+proc 
+  Antenna = 
+    receive_pulses(sixty).ATPActive.send_limit(60).Antenna+
+    receive_pulses(eighty).ATPActive.send_limit(80).Antenna+
+    receive_pulses(onethirty).ATPActive.send_limit(130).Antenna+
+    receive_pulses(oneforty).ATPActive.send_limit(140).Antenna+
+    receive_pulses(special).ATPInactive.send_limit(no_signal).Antenna+
+    receive_pulses(beacon).instru_emergency_brake.Antenna;
+
+  Track = 
+    send_pulses(sixty).Track+
+    send_pulses(eighty).Track+
+    send_pulses(onethirty).Track+
+    send_pulses(oneforty).Track+
+    send_pulses(special).Track+
+    send_pulses(beacon).Track;
+
+  General = (sum n: Nat . receive_limit(n) . sum m: Nat. receive_current_speed(m) . (
+         ( n < m )->speeding.bell_ring + ( n >= m)->safe_speed) . General)  +
+            (sum n: Nat . receive_current_speed(n) . sum m: Nat. receive_current_speed(m) . (
+         ( n < m )->speeding.bell_ring + ( n >= m)->safe_speed) . General) 
+         %sum n: Nat . current_speed(n). Core +
+   ;
+
+  ERTMS = send_current_speed(50).ERTMS ;
+%+          sum m: Nat.receive_limit(m).ERTMS;
+
+init
+  allow(
+    {speed_pulses, ATPActive, ATPInactive, 
+     emergency_brake,
+     speed_limit, 
+     current_speed,
+     bell,
+     send_current_speed,
+     speeding %test only
+     },
+    comm(
+      { receive_pulses | send_pulses -> speed_pulses,
+        send_limit  | receive_limit -> speed_limit,
+        send_current_speed | receive_current_speed -> current_speed,
+        bell_ring | ring_bell -> bell,
+        instru_emergency_brake | receive_emergency_brake -> emergency_brake},
+      General || Antenna || Track || ERTMS
+    )
+  );
+
