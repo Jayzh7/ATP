@@ -45,9 +45,9 @@ proc
     send_pulses(beacon).Track;
 
   General = (sum n: Nat . receive_limit(n) . sum m: Nat. receive_current_speed(m) . (
-         ( n < m )->speeding.bell_ring + ( n >= m)->safe_speed) . General)  +
-            (sum n: Nat . receive_current_speed(n) . sum m: Nat. receive_current_speed(m) . (
-         ( n < m )->speeding.bell_ring + ( n >= m)->safe_speed) . General) 
+         ( n < m )->(speeding.bell_ring) + ( n >= m)->safe_speed) . General)  +
+            (sum n: Nat . receive_current_speed(n) . sum m: Nat. receive_limit(m) . (
+         ( n > m )->(speeding.bell_ring) + ( n <= m)->safe_speed) . General) 
          %sum n: Nat . current_speed(n). Core +
    ;
 
@@ -61,8 +61,9 @@ init
      speed_limit, 
      current_speed,
      bell,
-     send_current_speed,
-     speeding %test only
+     %send_current_speed,%test only
+     speeding, %test only
+     safe_speed
      },
     comm(
       { receive_pulses | send_pulses -> speed_pulses,
