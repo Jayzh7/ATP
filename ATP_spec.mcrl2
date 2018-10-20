@@ -4,7 +4,12 @@
 % how to input the current speed..
 
 sort 
-  Pulses = struct sixty | eighty | onethirty | oneforty | special | beacon;
+  Pulses = struct sixty | eighty | onethirty | oneforty | special | beacon | none;
+  Track  = struct ATPArea | ERTMSArea;
+  BellState = struct bellOn | bellOff;
+  BrakeState = struct brake | emergencyBrake | released;
+  TrainType = struct freight | other;
+  ATPStatus = struct active | inactive;
 
 map
   no_signal: Nat;
@@ -13,15 +18,24 @@ eqn
   no_signal = 40;
 
 act
+  % speed limit related actions
   send_limit, receive_limit, speed_limit: Nat;
 
+  % current speed related actions
   receive_current_speed, send_current_speed, current_speed: Nat;
-
+  
+  % pulses 
   send_pulses, receive_pulses, speed_pulses: Pulses; 
 
-  bell_ring, ring_bell, bell;
+  % bell control
+  bell_ring, bell_stop;
+  send_bell_state, receive_bell_state, bell_state: BellState;
 
+  % running status indicator
   speeding, safe_speed;
+
+  % ATP status 
+  send_ATP_status, receive_ATP_status, ATP_status : ATPStatus;
 
   instru_emergency_brake, receive_emergency_brake, emergency_brake;
 
@@ -29,12 +43,14 @@ act
 
 proc 
   Antenna = 
-    receive_pulses(sixty).ATPActive.send_limit(60).Antenna+
-    receive_pulses(eighty).ATPActive.send_limit(80).Antenna+
-    receive_pulses(onethirty).ATPActive.send_limit(130).Antenna+
-    receive_pulses(oneforty).ATPActive.send_limit(140).Antenna+
-    receive_pulses(special).ATPInactive.send_limit(no_signal).Antenna+
-    receive_pulses(beacon).instru_emergency_brake.Antenna;
+    receive_pulses(sixty).ATPActive.send_ATP_status(active).send_limit(60).Antenna+
+    receive_pulses(eighty).ATPActive.send_ATP_status(active).send_limit(80).Antenna+
+    receive_pulses(onethirty).ATPActive.send_ATP_status(active).send_limit(130).Antenna+
+    receive_pulses(oneforty).ATPActive.send_ATP_status(active).send_limit(140).Antenna+
+    receive_pulses(special).ATPInactive.send_ATP_status(inactive).Antenna+
+    receive_pulses(beacon).instru_emergency_brake.Antenna+
+    receive_pulses(none).ATPActive.send_ATP_status(active).Antenna
+  ;
 
   Track = 
     send_pulses(sixty).Track+
@@ -42,16 +58,28 @@ proc
     send_pulses(onethirty).Track+
     send_pulses(oneforty).Track+
     send_pulses(special).Track+
-    send_pulses(beacon).Track;
+    send_pulses(beacon).Track+
+    send_pulses(none).Track;
 
-  General = (sum n: Nat . receive_limit(n) . sum m: Nat. receive_current_speed(m) . (
-         ( n < m )->(speeding.bell_ring) + ( n >= m)->safe_speed) . General)  +
-            (sum n: Nat . receive_current_speed(n) . sum m: Nat. receive_limit(m) . (
-         ( n > m )->(speeding.bell_ring) + ( n <= m)->safe_speed) . General) 
-         %sum n: Nat . current_speed(n). Core +
-   ;
+  % responsible for communicating with ERTMS
+  General = sum n: Nat . receive_limit(n) . sum m: Nat . receive_current_speed(m) . ATPpp(c_speed = m, a_speed = n) 
+          + receive_bell_state(bellOn).bell_ring
+          + receive_bell_state(bellOff).bell_stop
+            %+ sum n: Nat . receive_current_speed(n) . sum m: Nat . receive_limit(m) . ATPpp(n, m)
+  ;
 
-  ERTMS = send_current_speed(50).ERTMS ;
+  ATPpp(status : ATPStatus, c_speed : Nat, a_speed : Nat) = 
+     receive_ATP_status(active) . ATPpp(status=active)
+    +receive_ATP_status(inactive) . ATPpp(status=inactive)
+    +(status == active)->(
+       (c_speed > a_speed) -> (speeding.send_bell_state(bellOn)) . ATPpp(status, c_speed, a_speed)  
+      +(c_speed <= a_speed) -> safe_speed . send_bell_state(bellOff). ATPpp(status, c_speed, a_speed)
+    )
+  ;
+
+  ERTMS = send_current_speed(50).ERTMS 
+       
+  ;
 %+          sum m: Nat.receive_limit(m).ERTMS;
 
 init
@@ -60,18 +88,21 @@ init
      emergency_brake,
      speed_limit, 
      current_speed,
-     bell,
+     bell_ring, bell_stop, % instructions to ERTMS
      %send_current_speed,%test only
      speeding, %test only
-     safe_speed
+     safe_speed,
+     bell_state,
+     ATP_status
      },
     comm(
       { receive_pulses | send_pulses -> speed_pulses,
         send_limit  | receive_limit -> speed_limit,
         send_current_speed | receive_current_speed -> current_speed,
-        bell_ring | ring_bell -> bell,
-        instru_emergency_brake | receive_emergency_brake -> emergency_brake},
-      General || Antenna || Track || ERTMS
+        instru_emergency_brake | receive_emergency_brake -> emergency_brake,
+        send_ATP_status | receive_ATP_status -> ATP_status
+      },
+      General || Antenna || Track || ERTMS || ATPpp(inactive, 0, 0)
     )
   );
 
