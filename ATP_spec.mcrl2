@@ -62,14 +62,16 @@ proc
     send_pulses(none).Track;
 
   % responsible for communicating with ERTMS
-  General = sum n: Nat . receive_limit(n) . sum m: Nat . receive_current_speed(m) . ATPpp(c_speed = m, a_speed = n) . General
-          + receive_bell_state(bellOn).bell_ring.General
+  General = %sum n: Nat . receive_limit(n) . sum m: Nat . receive_current_speed(m) . ATPpp(c_speed = m, a_speed = n) . General
+            receive_bell_state(bellOn).bell_ring.General
           + receive_bell_state(bellOff).bell_stop.General
             %+ sum n: Nat . receive_current_speed(n) . sum m: Nat . receive_limit(m) . ATPpp(n, m)
   ;
 
   ATPpp(status : ATPStatus, c_speed : Nat, a_speed : Nat) = 
-     receive_ATP_status(active) . ATPpp(status=active)
+     sum n : Nat . receive_limit(n) . ATPpp(a_speed=n)
+    +sum m : Nat . receive_current_speed(m).ATPpp(c_speed=m)
+    +receive_ATP_status(active) . ATPpp(status=active)
     +receive_ATP_status(inactive) . ATPpp(status=inactive)
     +(status == active)->(
        (c_speed > a_speed) -> speeding . send_bell_state(bellOn) . ATPpp(status, c_speed, a_speed)  
