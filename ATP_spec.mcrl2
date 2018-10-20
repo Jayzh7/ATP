@@ -49,7 +49,7 @@ proc
     receive_pulses(oneforty).ATPActive.send_ATP_status(active).send_limit(140).Antenna+
     receive_pulses(special).ATPInactive.send_ATP_status(inactive).Antenna+
     receive_pulses(beacon).instru_emergency_brake.Antenna+
-    receive_pulses(none).ATPActive.send_ATP_status(active).Antenna
+    receive_pulses(none).ATPActive.send_ATP_status(active).send_limit(no_signal).Antenna
   ;
 
   Track = 
@@ -62,9 +62,9 @@ proc
     send_pulses(none).Track;
 
   % responsible for communicating with ERTMS
-  General = sum n: Nat . receive_limit(n) . sum m: Nat . receive_current_speed(m) . ATPpp(c_speed = m, a_speed = n) 
-          + receive_bell_state(bellOn).bell_ring
-          + receive_bell_state(bellOff).bell_stop
+  General = sum n: Nat . receive_limit(n) . sum m: Nat . receive_current_speed(m) . ATPpp(c_speed = m, a_speed = n) . General
+          + receive_bell_state(bellOn).bell_ring.General
+          + receive_bell_state(bellOff).bell_stop.General
             %+ sum n: Nat . receive_current_speed(n) . sum m: Nat . receive_limit(m) . ATPpp(n, m)
   ;
 
@@ -72,8 +72,8 @@ proc
      receive_ATP_status(active) . ATPpp(status=active)
     +receive_ATP_status(inactive) . ATPpp(status=inactive)
     +(status == active)->(
-       (c_speed > a_speed) -> (speeding.send_bell_state(bellOn)) . ATPpp(status, c_speed, a_speed)  
-      +(c_speed <= a_speed) -> safe_speed . send_bell_state(bellOff). ATPpp(status, c_speed, a_speed)
+       (c_speed > a_speed) -> speeding . send_bell_state(bellOn) . ATPpp(status, c_speed, a_speed)  
+      +(c_speed <= a_speed) -> safe_speed . send_bell_state(bellOff) . ATPpp(status, c_speed, a_speed)
     )
   ;
 
@@ -100,7 +100,8 @@ init
         send_limit  | receive_limit -> speed_limit,
         send_current_speed | receive_current_speed -> current_speed,
         instru_emergency_brake | receive_emergency_brake -> emergency_brake,
-        send_ATP_status | receive_ATP_status -> ATP_status
+        send_ATP_status | receive_ATP_status -> ATP_status,
+        send_bell_state | receive_bell_state -> bell_state
       },
       General || Antenna || Track || ERTMS || ATPpp(inactive, 0, 0)
     )
