@@ -23,7 +23,6 @@ sort
       country: Country,
       cspeed : Speed,
       aspeed : Speed
-      % 
     );
 
 map
@@ -85,6 +84,12 @@ eqn
   map_speed_limit(onethirty, NL) = 130;
   map_speed_limit(oneforty, NL) = 140;
   map_speed_limit(none, NL) = 40;
+  % Road condition in BE may not be as good as in NL.
+  map_speed_limit(sixty, BE) = 50;
+  map_speed_limit(eighty, BE) = 70;
+  map_speed_limit(onethirty, BE) = 120;
+  map_speed_limit(oneforty, BE) = 130;
+  map_speed_limit(none, BE) = 30;
 
 act
   % speed limit related actions
@@ -168,6 +173,7 @@ proc
     + sum m : Speed . receive_current_speed(m) . ATPpp(update_cspeed(train, m))
     + receive_bell_state(bellOn).bell_ring.ATPpp(update_bell(train, bellOn))
     + receive_bell_state(bellOff).bell_stop.ATPpp(update_bell(train, bellOff))
+
     + receive_ATP_status(active) . ATPpp(update_ATP(train, active))
     + receive_ATP_status(inactive) . ATPpp(update_ATP(train, inactive))
     + (is_ATPactive(train))->(
@@ -205,7 +211,7 @@ init
      speeding, %test only
      safe_speed,
      transmit_bell_state,
-     transmit_brake_status,
+    %  transmit_brake_status,
      transmit_ATP_status,
      transmit_train_type
      },
