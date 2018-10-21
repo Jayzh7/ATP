@@ -122,7 +122,7 @@ proc
     receive_pulses(onethirty).ATPActive.send_ATP_status(active).send_limit(130).Antenna+
     receive_pulses(oneforty).ATPActive.send_ATP_status(active).send_limit(140).Antenna+
     receive_pulses(special).ATPInactive.send_ATP_status(inactive).Antenna+
-    receive_pulses(beacon).instru_emergency_brake.Antenna+
+    receive_pulses(beacon).ATPActive.send_ATP_status(active).instru_emergency_brake.Antenna+
     receive_pulses(none).ATPActive.send_ATP_status(active).send_limit(no_signal).Antenna
   ;
 
@@ -144,12 +144,12 @@ proc
     + receive_bell_state(bellOff).bell_stop.General(update_bell(train, bellOff))
 
     % Here we assume that ERTMS sends brake messge only when its status has changed
-    + receive_brake_status(braking) . 
-        % we stop the bell if the driver begins applying brake after he heard the bell ringing
-        is_bell_ringing(train) -> (
-          bell_stop.General(update_bell(train, bellOff))
-        ) <>
-        (General(train))
+    % + receive_brake_status(braking) . 
+    %     % we stop the bell if the driver begins applying brake after he heard the bell ringing
+    %     is_bell_ringing(train) -> (
+    %       bell_stop.General(update_bell(train, bellOff))
+    %     ) <>
+    %     (General(train))
     + receive_brake_status(releasing) .
         % we apply the emergency brake if the driver release the brake when the train is still speeding
         is_speeding(train) -> (
@@ -171,9 +171,12 @@ proc
     + receive_ATP_status(active) . ATPpp(update_ATP(train, active))
     + receive_ATP_status(inactive) . ATPpp(update_ATP(train, inactive))
     + (is_ATPactive(train))->(
-        is_speeding(train) -> 
-           (speeding . send_bell_state(bellOn) . ATPpp(train))  
-        <> (safe_speed . send_bell_state(bellOff) . ATPpp(train))
+        is_speeding(train) ->(
+           (is_bell_ringing(train)==false) ->(
+             speeding . send_bell_state(bellOn) . ATPpp(train)
+           )
+        )
+        % <> (safe_speed . send_bell_state(bellOff) . ATPpp(train))
      )
   ;
 
@@ -193,6 +196,7 @@ eqn
 init
   allow(
     {transmit_speed_pulses, ATPActive, ATPInactive, 
+    instru_emergency_brake,
      emergency_brake,
      transmit_speed_limit, 
      transmit_current_speed,
