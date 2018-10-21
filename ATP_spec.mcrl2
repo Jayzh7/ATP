@@ -8,7 +8,7 @@ sort
   Track  = struct ATPArea | ERTMSArea;
   Country = struct NL | BE;
   BellState = struct bellOn | bellOff;
-  BrakeState = struct brake | emergencyBrake | released;
+  BrakeStatus = struct braking | emergencyBrake | releasing;
   TrainType = struct freight | other;
   ATPStatus = struct active | inactive;
 
@@ -22,7 +22,7 @@ eqn
   map_speed_limit(eighty, NL) = 80;
   map_speed_limit(onethirty, NL) = 130;
   map_speed_limit(oneforty, NL) = 140;
-  map_speed_limit(no_signal, NL) = 40;   
+  map_speed_limit(none, NL) = 40;   
 
 act
   % speed limit related actions
@@ -43,6 +43,11 @@ act
 
   % ATP status 
   send_ATP_status, receive_ATP_status, ATP_status : ATPStatus;
+
+  % brake status message from ERTMS	
+  send_brake_status, receive_brake_status, brake_status : BrakeStatus; 
+  % train type message from ERTMS
+  send_train_type, receive_train_type, train_type: TrainType;
 
   instru_emergency_brake, receive_emergency_brake, emergency_brake;
 
@@ -90,7 +95,8 @@ proc
   ERTMS = send_current_speed(50).ERTMS     
         + send_train_type(freight)
         + send_train_type(other)
-        + send_brake_status(brake)
+        + send_brake_status(braking)
+        + send_brake_status(releasing)
   ;
 
 init
@@ -104,7 +110,9 @@ init
      speeding, %test only
      safe_speed,
      bell_state,
-     ATP_status
+     brake_status,
+     ATP_status,
+     train_type
      },
     comm(
       { receive_pulses | send_pulses -> speed_pulses,
@@ -112,7 +120,9 @@ init
         send_current_speed | receive_current_speed -> current_speed,
         instru_emergency_brake | receive_emergency_brake -> emergency_brake,
         send_ATP_status | receive_ATP_status -> ATP_status,
-        send_bell_state | receive_bell_state -> bell_state
+        send_bell_state | receive_bell_state -> bell_state,
+        send_brake_status | receive_brake_status -> brake_status,
+        send_train_type | receive_train_type -> train_type
       },
       General || Antenna || Track || ERTMS || ATPpp(inactive, 0, 0)
     )
