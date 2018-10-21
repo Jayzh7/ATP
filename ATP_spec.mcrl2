@@ -19,18 +19,56 @@ sort
       bell: BellState,
       brake: BrakeStatus,
       type: TrainType,
-      ATP: ATPStatus
+      ATP: ATPStatus,
+      country: Country,
+      cspeed : Speed,
+      aspeed : Speed
     );
-
 
 map
   no_signal: Speed;
   map_speed_limit: Pulses # Country -> Speed;
 
+  bell_is_ringing: Train -> Bool;
+  brake_is_applying: Train -> Bool;
+  is_freight: Train -> Bool;
+  is_ATPactive: Train -> Bool;
+  in_what_country: Train -> Country;
+  
+  update_bell: Train # BellState -> Train;
+  update_brake: Train # BrakeStatus -> Train;
+  update_type: Train # TrainType -> Train;
+  update_ATP: Train # ATPStatus -> Train;
+  update_country: Train # Country -> Train;
+  update_cspeed : Train # Speed -> Train;
+  update_aspeed : Train # Speed -> Train;
+
 var 
-  train : Train;
+  v_train : Train;
+  v_bell : BellState;
+  v_brake : BrakeStatus;
+  v_type : TrainType;
+  v_atp : ATPStatus;
+  v_country: Country;
+  v_aspeed : Speed;
+  v_cspeed : Speed;
 
 eqn
+  bell_is_ringing(v_train) = bell(v_train) == bellOn;
+  brake_is_applying(v_train) = brake(v_train) == braking;
+  is_freight(v_train) = type(v_train) == freight;
+  is_ATPactive(v_train) = ATP(v_train) == active;
+  in_what_country(v_train) = country(v_train);   
+
+  update_bell(v_train, v_bell) = train_info(v_bell, brake(v_train), type(v_train), ATP(v_train), country(v_train), cspeed(v_train), aspeed(v_train));
+  update_brake(v_train, v_brake) = train_info(bell(v_train), v_brake, type(v_train), ATP(v_train), country(v_train), cspeed(v_train), aspeed(v_train));
+  update_type(v_train, v_type) = train_info(bell(v_train), brake(v_train), v_type, ATP(v_train), country(v_train), cspeed(v_train), aspeed(v_train));
+  update_ATP(v_train, v_atp) = train_info(bell(v_train), brake(v_train), type(v_train), v_atp, country(v_train), cspeed(v_train), aspeed(v_train));
+  update_country(v_train, v_country) = train_info(bell(v_train), brake(v_train), type(v_train), ATP(v_train), v_country, cspeed(v_train), aspeed(v_train));
+  update_cspeed(v_train, v_cspeed) = train_info(bell(v_train), brake(v_train), type(v_train), ATP(v_train), country(v_train), v_cspeed, aspeed(v_train));
+  update_aspeed(v_train, v_aspeed) = train_info(bell(v_train), brake(v_train), type(v_train), ATP(v_train), country(v_train), cspeed(v_train), v_aspeed);
+
+%  update
   no_signal = 40;
   map_speed_limit(sixty, NL) = 60;
   map_speed_limit(eighty, NL) = 80;
@@ -40,28 +78,28 @@ eqn
 
 act
   % speed limit related actions
-  send_limit, receive_limit, speed_limit: Speed;
+  send_limit, receive_limit, transmit_speed_limit: Speed;
 
   % current speed related actions
-  receive_current_speed, send_current_speed, current_speed: Speed;
+  receive_current_speed, send_current_speed, transmit_current_speed: Speed;
   
   % pulses 
-  send_pulses, receive_pulses, speed_pulses: Pulses; 
+  send_pulses, receive_pulses, transmit_speed_pulses: Pulses; 
 
   % bell control
   bell_ring, bell_stop;
-  send_bell_state, receive_bell_state, bell_state: BellState;
+  send_bell_state, receive_bell_state, transmit_bell_state: BellState;
 
   % running status indicator
   speeding, safe_speed;
 
   % ATP status 
-  send_ATP_status, receive_ATP_status, ATP_status : ATPStatus;
+  send_ATP_status, receive_ATP_status, transmit_ATP_status : ATPStatus;
 
   % brake status message from ERTMS	
-  send_brake_status, receive_brake_status, brake_status : BrakeStatus; 
+  send_brake_status, receive_brake_status, transmit_brake_status : BrakeStatus; 
   % train type message from ERTMS
-  send_train_type, receive_train_type, train_type: TrainType;
+  send_train_type, receive_train_type, transmit_train_type: TrainType;
 
   instru_emergency_brake, receive_emergency_brake, emergency_brake;
 
@@ -89,10 +127,8 @@ proc
   ;
 
   % responsible for communicating with ERTMS
-  General = %sum n: Nat . receive_limit(n) . sum m: Nat . receive_current_speed(m) . ATPpp(c_speed = m, a_speed = n) . General
-            receive_bell_state(bellOn).bell_ring.General
+  General = receive_bell_state(bellOn).bell_ring.General
           + receive_bell_state(bellOff).bell_stop.General
-            %+ sum n: Nat . receive_current_speed(n) . sum m: Nat . receive_limit(m) . ATPpp(n, m)
   ;
 
   ATPpp(status : ATPStatus, c_speed : Speed, a_speed : Speed) = 
@@ -115,28 +151,28 @@ proc
 
 init
   allow(
-    {speed_pulses, ATPActive, ATPInactive, 
+    {transmit_speed_pulses, ATPActive, ATPInactive, 
      emergency_brake,
-     speed_limit, 
-     current_speed,
+     transmit_speed_limit, 
+     transmit_current_speed,
      bell_ring, bell_stop, % instructions to ERTMS
      %send_current_speed,%test only
      speeding, %test only
      safe_speed,
-     bell_state,
-     brake_status,
-     ATP_status,
-     train_type
+     transmit_bell_state,
+     transmit_brake_status,
+     transmit_ATP_status,
+     transmit_train_type
      },
     comm(
-      { receive_pulses | send_pulses -> speed_pulses,
-        send_limit  | receive_limit -> speed_limit,
-        send_current_speed | receive_current_speed -> current_speed,
+      { receive_pulses | send_pulses -> transmit_speed_pulses,
+        send_limit  | receive_limit -> transmit_speed_limit,
+        send_current_speed | receive_current_speed -> transmit_current_speed,
         instru_emergency_brake | receive_emergency_brake -> emergency_brake,
-        send_ATP_status | receive_ATP_status -> ATP_status,
-        send_bell_state | receive_bell_state -> bell_state,
-        send_brake_status | receive_brake_status -> brake_status,
-        send_train_type | receive_train_type -> train_type
+        send_ATP_status | receive_ATP_status -> transmit_ATP_status,
+        send_bell_state | receive_bell_state -> transmit_bell_state,
+        send_brake_status | receive_brake_status -> transmit_brake_status,
+        send_train_type | receive_train_type -> transmit_train_type
       },
       General || Antenna || Track || ERTMS || ATPpp(inactive, 0, 0)
     )
