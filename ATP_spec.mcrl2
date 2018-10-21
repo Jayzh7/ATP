@@ -6,6 +6,7 @@
 sort 
   Pulses = struct sixty | eighty | onethirty | oneforty | special | beacon | none;
   Track  = struct ATPArea | ERTMSArea;
+  Country = struct NL | BE;
   BellState = struct bellOn | bellOff;
   BrakeState = struct brake | emergencyBrake | released;
   TrainType = struct freight | other;
@@ -13,9 +14,15 @@ sort
 
 map
   no_signal: Nat;
+  map_speed_limit: Pulses # Country -> Nat;
 
 eqn
   no_signal = 40;
+  map_speed_limit(sixty, NL) = 60;
+  map_speed_limit(eighty, NL) = 80;
+  map_speed_limit(onethirty, NL) = 130;
+  map_speed_limit(oneforty, NL) = 140;
+  map_speed_limit(no_signal, NL) = 40;   
 
 act
   % speed limit related actions
@@ -59,7 +66,8 @@ proc
     send_pulses(oneforty).Track+
     send_pulses(special).Track+
     send_pulses(beacon).Track+
-    send_pulses(none).Track;
+    send_pulses(none).Track
+  ;
 
   % responsible for communicating with ERTMS
   General = %sum n: Nat . receive_limit(n) . sum m: Nat . receive_current_speed(m) . ATPpp(c_speed = m, a_speed = n) . General
@@ -79,10 +87,11 @@ proc
     )
   ;
 
-  ERTMS = send_current_speed(50).ERTMS 
-       
+  ERTMS = send_current_speed(50).ERTMS     
+        + send_train_type(freight)
+        + send_train_type(other)
+        + send_brake_status(brake)
   ;
-%+          sum m: Nat.receive_limit(m).ERTMS;
 
 init
   allow(
