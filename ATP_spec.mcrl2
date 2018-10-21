@@ -4,6 +4,8 @@
 % how to input the current speed..
 
 sort 
+  Speed = Nat;
+
   Pulses = struct sixty | eighty | onethirty | oneforty | special | beacon | none;
   Track  = struct ATPArea | ERTMSArea;
   Country = struct NL | BE;
@@ -12,9 +14,21 @@ sort
   TrainType = struct freight | other;
   ATPStatus = struct active | inactive;
 
+  Train = 
+    struct train_info(
+      bell: BellState,
+      brake: BrakeStatus,
+      type: TrainType,
+      ATP: ATPStatus
+    );
+
+
 map
-  no_signal: Nat;
-  map_speed_limit: Pulses # Country -> Nat;
+  no_signal: Speed;
+  map_speed_limit: Pulses # Country -> Speed;
+
+var 
+  train : Train;
 
 eqn
   no_signal = 40;
@@ -26,10 +40,10 @@ eqn
 
 act
   % speed limit related actions
-  send_limit, receive_limit, speed_limit: Nat;
+  send_limit, receive_limit, speed_limit: Speed;
 
   % current speed related actions
-  receive_current_speed, send_current_speed, current_speed: Nat;
+  receive_current_speed, send_current_speed, current_speed: Speed;
   
   % pulses 
   send_pulses, receive_pulses, speed_pulses: Pulses; 
@@ -81,9 +95,9 @@ proc
             %+ sum n: Nat . receive_current_speed(n) . sum m: Nat . receive_limit(m) . ATPpp(n, m)
   ;
 
-  ATPpp(status : ATPStatus, c_speed : Nat, a_speed : Nat) = 
-     sum n : Nat . receive_limit(n) . ATPpp(a_speed=n)
-    +sum m : Nat . receive_current_speed(m).ATPpp(c_speed=m)
+  ATPpp(status : ATPStatus, c_speed : Speed, a_speed : Speed) = 
+     sum n : Speed . receive_limit(n) . ATPpp(a_speed=n)
+    +sum m : Speed . receive_current_speed(m).ATPpp(c_speed=m)
     +receive_ATP_status(active) . ATPpp(status=active)
     +receive_ATP_status(inactive) . ATPpp(status=inactive)
     +(status == active)->(
