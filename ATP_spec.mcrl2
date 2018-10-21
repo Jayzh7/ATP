@@ -38,6 +38,7 @@ map
   is_ATPactive: Train -> Bool;
   in_what_country: Train -> Country;
   is_speeding: Train -> Bool;
+  is_allowed_to_release: Train -> Bool;
   
   update_bell: Train # BellState -> Train;
   update_brake: Train # BrakeStatus -> Train;
@@ -65,8 +66,9 @@ eqn
   is_brake_applying(v_train) = brake(v_train) == braking;
   is_freight(v_train) = type(v_train) == freight;
   is_ATPactive(v_train) = ATP(v_train) == active;
-  in_what_country(v_train) = country(v_train);   
-  is_speeding(v_train) = (cspeed(v_train) > cspeed(v_train));
+  is_speeding(v_train) = (cspeed(v_train) > aspeed(v_train));
+  % -> is not allowed in 'eqn' ?
+  %is_allowed_to_release(v_train) = (is_freight(v_train) -> (cspeed(v_train) < (aspeed(v_train) + extra_freight)) <> (cspeed(v_train) < aspeed(v_train));
 
   update_bell(v_train, v_bell) = train_info(v_bell, brake(v_train), type(v_train), ATP(v_train), country(v_train), cspeed(v_train), aspeed(v_train));
   update_brake(v_train, v_brake) = train_info(bell(v_train), v_brake, type(v_train), ATP(v_train), country(v_train), cspeed(v_train), aspeed(v_train));
@@ -136,29 +138,36 @@ proc
 
   % responsible for communicating with ERTMS
   General(train : Train) = 
-      receive_bell_state(bellOn).bell_ring.General(update_bell(train, bellOn))
+      sum n : Speed . receive_limit(n) . General(update_aspeed(train, n))
+    + sum m : Speed . receive_current_speed(m) . General(update_cspeed(train, m))
+    + receive_bell_state(bellOn).bell_ring.General(update_bell(train, bellOn))
     + receive_bell_state(bellOff).bell_stop.General(update_bell(train, bellOff))
 
-    % + receive_brake_status(braking) . 
-    %     % we stop the bell if the driver begins applying brake after he heard the bell ringing
-    %     is_bell_ringing(train) -> (
-    %       bell_stop.General(update_bell(train, bellOff))
-    %     ) <>
-    %     (General(train))
-    % + receive_brake_status(releasing) .
-    %     % we apply the emergency brake if the driver release the brake when the train is still speeding
-    %     is_speeding(train) -> (
-    %       % if the train is a freight train, the driver is allowed to release the brake after a certain time
-    %       is_freight(train) -> (
-    %         instru_emergency_brake
-    %       ) <>
-    %       (instru_emergency_brake)
-    %     )
+    % Here we assume that ERTMS sends brake messge only when its status has changed
+    + receive_brake_status(braking) . 
+        % we stop the bell if the driver begins applying brake after he heard the bell ringing
+        is_bell_ringing(train) -> (
+          bell_stop.General(update_bell(train, bellOff))
+        ) <>
+        (General(train))
+    + receive_brake_status(releasing) .
+        % we apply the emergency brake if the driver release the brake when the train is still speeding
+        is_speeding(train) -> (
+          % if the train is a freight train, the driver is allowed to release the brake after a certain time
+          is_freight(train) -> (
+            (cspeed(train) > (aspeed(train) + extra_freight)) -> (
+              instru_emergency_brake
+            )    
+          ) <>
+          (instru_emergency_brake)
+        )
   ;
 
   ATPpp(train : Train) = 
-     sum n : Speed . receive_limit(n) . ATPpp(update_aspeed(train, n))
+      sum n : Speed . receive_limit(n) . ATPpp(update_aspeed(train, n))
     + sum m : Speed . receive_current_speed(m) . ATPpp(update_cspeed(train, m))
+    + receive_bell_state(bellOn).bell_ring.ATPpp(update_bell(train, bellOn))
+    + receive_bell_state(bellOff).bell_stop.ATPpp(update_bell(train, bellOff))
     + receive_ATP_status(active) . ATPpp(update_ATP(train, active))
     + receive_ATP_status(inactive) . ATPpp(update_ATP(train, inactive))
     + (is_ATPactive(train))->(
@@ -180,7 +189,7 @@ map
   init_train : Train;
 
 eqn 
-  init_train = train_info(bellOff, releasing, other, inactive, NL, 0, 40);
+  init_train = train_info(bellOff, releasing, other, active, NL, 0, 40);
 init
   allow(
     {transmit_speed_pulses, ATPActive, ATPInactive, 
