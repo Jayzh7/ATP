@@ -8,7 +8,7 @@ sort
   Track  = struct ATPArea | ERTMSArea;
   Country = struct NL | BE;
   BellState = struct bellOn | bellOff;
-  BrakeState = struct brake | emergencyBrake | released;
+  BrakeStatus = struct braking | emergencyBrake | releasing;
   TrainType = struct freight | other;
   ATPStatus = struct active | inactive;
 
@@ -43,6 +43,9 @@ act
 
   % ATP status 
   send_ATP_status, receive_ATP_status, ATP_status : ATPStatus;
+
+  % brake status messge from ERTMS	
+  send_brake_status, receive_brake_status, brake_status : 
 
   instru_emergency_brake, receive_emergency_brake, emergency_brake;
 
