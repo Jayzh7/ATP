@@ -96,19 +96,17 @@ act
   reset_pressed , reset_command , reset_ATP;
 
   % speed limit related actions
-  send_limit, receive_limit, transmit_speed_limit: Speed;
+  send_limit, receive_limit_g, receive_limit_a, transmit_speed_limit: Speed;
 
-  receive_track_type, send_track_type : Track;
-  leave_ERTMS, enter_ERTMS;
   % current speed related actions
-  receive_current_speed, send_current_speed, transmit_current_speed: Speed;
+  receive_current_speed_g, receive_current_speed_a, send_current_speed, transmit_current_speed: Speed;
   
   % pulses 
   send_pulses, receive_pulses, transmit_speed_pulses: Pulses; 
 
   % bell control
   bell_ring, bell_stop;
-  send_bell_state, receive_bell_state, transmit_bell_state: BellState;
+  send_bell_state, receive_bell_state, transmit_bell_state : BellState;
 
   % running status indicator
   speeding, safe_speed;
@@ -119,7 +117,9 @@ act
   % brake status message from ERTMS	
   send_brake_status, receive_brake_status, transmit_brake_status : BrakeStatus; 
   % train type message from ERTMS
-  send_train_type, receive_train_type, transmit_train_type: TrainType;
+  send_train_type, receive_train_type, transmit_train_type : TrainType;
+  receive_track_type, send_track_type : Track;
+  leave_ERTMS, enter_ERTMS;
 
   instru_emergency_brake, receive_emergency_brake, emergency_brake;
 
@@ -147,9 +147,17 @@ proc
   ;
 
   % responsible for communicating with ERTMS
+  % Receive from ERTMS
+  %     * Track type
+  %     * reset command
+  %     * brake status
+  % Receive from ATPpp
+  %     * bell status
+  %     * brake command
   General(train : Train) = 
-      sum n : Speed . receive_limit(n) . General(update_aspeed(train, n))
-    + sum m : Speed . receive_current_speed(m) . General(update_cspeed(train, m))
+  
+      sum n : Speed . receive_limit_g(n) . General(update_aspeed(train, n))
+    + sum m : Speed . receive_current_speed_g(m) . General(update_cspeed(train, m))
 
     + receive_bell_state(bellOn).bell_ring.General(update_bell(train, bellOn))
     + receive_bell_state(bellOff).bell_stop.General(update_bell(train, bellOff))
@@ -191,8 +199,8 @@ proc
   ;
 
   ATPpp(train : Train) = 
-      sum n : Speed . receive_limit(n) . ATPpp(update_aspeed(train, n))
-    + sum m : Speed . receive_current_speed(m) . ATPpp(update_cspeed(train, m))
+      sum n : Speed . receive_limit_a(n) . ATPpp(update_aspeed(train, n))
+    + sum m : Speed . receive_current_speed_a(m) . ATPpp(update_cspeed(train, m))
 
     + receive_ATP_status(active) . ((is_ATPactive(train)==false) && (is_ATPpaused(train)==false)) -> ATPpp(update_ATP(train, active)) <> ATPpp(train)
     + receive_ATP_status(inactive) . (is_ATPactive(train) && (is_ATPpaused(train)==false)) -> ATPpp(update_ATP(train, inactive)) <> ATPpp(train)
@@ -222,7 +230,7 @@ map
   init_train : Train;
 
 eqn 
-  init_train = train_info(bellOff, releasing, other, active, NL, 0, 40);
+  init_train = train_info(bellOff, releasing, other, active, NL, 0, 0);
 init
   allow(
     {
@@ -244,8 +252,8 @@ init
     },
     comm(
       { receive_pulses | send_pulses -> transmit_speed_pulses,
-        send_limit  | receive_limit -> transmit_speed_limit,
-        send_current_speed | receive_current_speed -> transmit_current_speed,
+        send_limit  | receive_limit_a | receive_limit_g -> transmit_speed_limit,
+        send_current_speed | receive_current_speed_a | receive_current_speed_g -> transmit_current_speed,
         instru_emergency_brake | receive_emergency_brake -> emergency_brake,
         send_ATP_status | receive_ATP_status -> transmit_ATP_status,
         send_bell_state | receive_bell_state -> transmit_bell_state,
