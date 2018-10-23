@@ -121,7 +121,8 @@ act
   receive_track_type, send_track_type, transmit_track_type: Track;
   leave_ERTMS, enter_ERTMS;
 
-  instru_emergency_brake, receive_emergency_brake, emergency_brake;
+  instru_emergency_brake, receive_emergency_brake, transmit_emergency_brake;
+  emergency_brake, bell_reminder;
 
   ATPActive, ATPInactive;
 
@@ -150,6 +151,10 @@ proc
       receive_bell_state(bellOn).bell_ring.BellController
     + receive_bell_state(bellOff).bell_stop.BellController;
 
+  BrakeController = 
+      receive_emergency_brake . send_ATP_status(pause) . emergency_brake . BrakeController;
+    
+
   % responsible for communicating with ERTMS
   % Receive from ERTMS
   %     * Track type
@@ -161,7 +166,7 @@ proc
   General(train : Train) = 
   
       sum n : Speed . receive_limit_g(n) . General(update_aspeed(train, n))
-    + sum m : Speed . receive_current_speed_g(m) . General(update_cspeed(train, m))
+    + sum m : Speed . receive_current_speed_g(m) . ((is_freight(train) && (m <= (aspeed(train) + extra_freight))) -> (bell_reminder . General(update_cspeed(train, m))) <>  General(update_cspeed(train, m))) 
 
     + receive_train_type(freight).General(update_type(train, freight))
     + receive_train_type(other).General(update_type(train, other))
@@ -179,9 +184,6 @@ proc
       ) <>
       General(train)
 
-    % we stop the bell if the driver begins applying brake after he heard the bell ringing
-    + receive_brake_status(braking) . send_bell_state(bellOff) . General(update_bell(train, bellOff))
-        
           
     % proved to have a deadlock here
     + receive_brake_status(releasing) .
@@ -189,7 +191,7 @@ proc
         is_speeding(train) -> (
           % if the train is a freight train, the driver is allowed to release the brake after a certain time
           ((is_freight(train)==false) || (is_freight(train) && cspeed(train) > (aspeed(train) + extra_freight))) ->(
-            send_ATP_status(pause).instru_emergency_brake.General(update_ATP(train, pause))
+            instru_emergency_brake.General(update_ATP(train, pause))
           ) <>
           General(train)
         ) <> General(train)
@@ -206,12 +208,8 @@ proc
            (is_bell_ringing(train)==false) ->(
              speeding . send_bell_state(bellOn) . ATPpp(train)
            ) 
-          %  ATPpp(train)
         ) 
-        % ATPpp(train)
-        % <> (safe_speed . send_bell_state(bellOff) . ATPpp(train))
       ) 
-      % ATPpp(train)
   ;
 
   ERTMS = send_current_speed(50).ERTMS   
@@ -247,13 +245,14 @@ init
       transmit_train_type,
       enter_ERTMS,
       leave_ERTMS,
-      reset_ATP
+      reset_ATP,
+      bell_reminder
     },
     comm(
       { receive_pulses | send_pulses -> transmit_speed_pulses,
         send_limit  | receive_limit_a | receive_limit_g -> transmit_speed_limit,
         send_current_speed | receive_current_speed_a | receive_current_speed_g -> transmit_current_speed,
-        instru_emergency_brake | receive_emergency_brake -> emergency_brake,
+        instru_emergency_brake | receive_emergency_brake -> transmit_emergency_brake,
         send_ATP_status | receive_ATP_status -> transmit_ATP_status,
         send_bell_state | receive_bell_state -> transmit_bell_state,
         send_brake_status | receive_brake_status -> transmit_brake_status,

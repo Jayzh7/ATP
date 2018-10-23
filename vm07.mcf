@@ -1,0 +1,1 @@
+[true*.transmit_current_speed(0)][true*.emergency_brake]mu X.[!reset_ATP]X&&<true>true
