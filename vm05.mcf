@@ -1,1 +1,1 @@
-[!transmit_train_type(freight).!safe_speed.bell_reminder]false
+[!transmit_train_type(freight)*.!safe_speed*.bell_reminder]false
