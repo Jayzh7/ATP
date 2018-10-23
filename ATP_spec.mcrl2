@@ -167,27 +167,8 @@ proc
           ATPActive.send_ATP_status(active) . send_limit(map_speed_limit(code, ctry)) . ATPpp(code, ctry)
         ) <>
           ATPInactive.send_ATP_status(inactive) . ATPpp(code, ctry)
-  %   receive_spped_code(sixty) . (pulses != sixty -> (
-  %       send_limit(map_speed_limit(sixty, country)).ATPpp(sixty, country);
-  %     ) <>
-  %     ATPpp(pulses, country)
-  %   )
-  % + receive_spped_code(eighty) . (pulses != eighty -> (
-  %       send_limit(map_speed_limit(eighty, country)).ATPpp(eighty, country);
-  %     ) <>
-  %     ATPpp(pulses, country)
-  %   ) 
-  % + receive_spped_code(onethirty) . (pulses != onethirty -> (
-  %       send_limit(map_speed_limit(onethirty, country)).ATPpp(onethirty, country);
-  %     ) <>
-  %     ATPpp(pulses, country)
-  %   )
-  % + receive_spped_code(oneforty) . (pulses != sixty -> (
-  %       send_limit(map_speed_limit(oneforty, country)).ATPpp(oneforty, country);
-  %     ) <>
-  %     ATPpp(pulses, country)
-  %   )
-  + sum c : Country . receive_country(c) . ATPpp(pls, c);
+  + receive_country(NL) . ATPpp(pls, NL)
+  + receive_country(BE) . ATPpp(pls, BE);
     
     
 
@@ -213,9 +194,9 @@ proc
     + receive_train_type(other).General(update_type(train, other))
 
 
-    % likely to have a deadlock here
-    % + receive_track_type(ATPArea).leave_ERTMS.send_ATP_status(active)
-    % + receive_track_type(ERTMSArea).enter_ERTMS.send_ATP_status(inactive)
+    %likely to have a deadlock here
+    + receive_track_type(ATPArea).leave_ERTMS.send_ATP_status(active)
+    + receive_track_type(ERTMSArea).enter_ERTMS.send_ATP_status(inactive)
 
     + reset_command . is_stopped(train) -> (
         is_ATPpaused(train) -> (
@@ -310,7 +291,7 @@ init
         reset_pressed | reset_command -> reset_ATP,
         send_country | receive_country -> transmit_country
       },
-      General(init_train) || Antenna || ATP(init_train)  ||ATPpp(none, NL) || ERTMS || Track
+      General(init_train) || Antenna || ATP(init_train)   || ERTMS || Track
     )
   );
 
