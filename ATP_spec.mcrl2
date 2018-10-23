@@ -146,6 +146,10 @@ proc
     send_pulses(none).Track
   ;
 
+  BellController = 
+      receive_bell_state(bellOn).bell_ring.BellController
+    + receive_bell_state(bellOff).bell_stop.BellController;
+
   % responsible for communicating with ERTMS
   % Receive from ERTMS
   %     * Track type
@@ -162,8 +166,6 @@ proc
     + receive_train_type(freight).General(update_type(train, freight))
     + receive_train_type(other).General(update_type(train, other))
 
-    + receive_bell_state(bellOn).bell_ring.General(update_bell(train, bellOn))
-    + receive_bell_state(bellOff).bell_stop.General(update_bell(train, bellOff))
 
     % likely to have a deadlock here
     % + receive_track_type(ATPArea).leave_ERTMS.send_ATP_status(active)
@@ -177,12 +179,10 @@ proc
       ) <>
       General(train)
 
-    + receive_brake_status(braking) . 
-        % we stop the bell if the driver begins applying brake after he heard the bell ringing
-        is_bell_ringing(train) -> (
-          bell_stop.General(update_bell(train, bellOff))
-        ) <>
-        (General(train))
+    % we stop the bell if the driver begins applying brake after he heard the bell ringing
+    + receive_brake_status(braking) . send_bell_state(bellOff) . General(update_bell(train, bellOff))
+        
+          
     % proved to have a deadlock here
     + receive_brake_status(releasing) .
         % we apply the emergency brake if the driver release the brake when the train is still speeding
