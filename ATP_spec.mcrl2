@@ -159,14 +159,17 @@ proc
     + receive_bell_state(bellOff).bell_stop.BellController;
 
   BrakeController = 
-      receive_emergency_brake . send_ATP_status(pause) . emergency_brake . BrakeController;
+    receive_emergency_brake . send_ATP_status(pause) . emergency_brake . BrakeController;
 
   ATPpp(pls : Pulses, ctry : Country) = 
-    sum code : Pulses . receive_speed_code(code) . 
-        (code != beacon && code != special) -> (
-          ATPActive.send_ATP_status(active) . send_limit(map_speed_limit(code, ctry)) . ATPpp(code, ctry)
-        ) <>
-          ATPInactive.send_ATP_status(inactive) . ATPpp(code, ctry)
+    receive_speed_code(sixty) .
+      send_limit(map_speed_limit(sixty, ctry)).ATPpp(sixty, ctry)
+  + receive_speed_code(eighty) . 
+        send_limit(map_speed_limit(eighty, ctry)).ATPpp(eighty, ctry)
+  + receive_speed_code(onethirty) .
+        send_limit(map_speed_limit(onethirty, ctry)).ATPpp(onethirty, ctry)
+  + receive_speed_code(oneforty) . 
+        send_limit(map_speed_limit(oneforty, ctry)).ATPpp(oneforty, ctry)
   + receive_country(NL) . ATPpp(pls, NL)
   + receive_country(BE) . ATPpp(pls, BE);
     
