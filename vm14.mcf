@@ -1,0 +1,7 @@
+nu X(vm:Nat=0,vc:Nat=0,b1:Bool=true).
+forall v1:Nat. [transmit_current_speed(v1)]X(vm,v1,b1)&&
+forall v2:Nat. [transmit_speed_limit(v2)]X(v2,vc,b1)&&
+[!(exists v3:Nat. transmit_current_speed(v3)||transmit_speed_limit(v3))]X(vm,vc,b1)&&
+[ATPActive]X(vm,vc,true)&&
+[ATPInactive]X(vm,vc,false)&&
+(val(vc>vm)&&val(b1)=>mu X.[!bell_ring]X&&<true>true)
