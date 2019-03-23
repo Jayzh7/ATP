@@ -1,1 +1,11 @@
-[!transmit_train_type(freight)*.!safe_speed*.bell_reminder]false
+form nu X(vm:Nat=0,vc:Nat=0,b1:Bool=true,b2:Bool=false).
+ (forall v1:Nat.([transmit_current_speed(v1)]X(vm,v1,b1,b2)))&&
+ (forall v2:Nat.([transmit_speed_limit(v2)]X(v2,vc,b1,b2)))&&
+ [ATPActive]X(vm,vc,true,b2)&&
+ [ATPInactive]X(vm,vc,false,b2)&&
+ [transmit_train_type(freight)]X(vm,vc,b1,true)&&
+ [transmit_train_type(other)]X(vm,vc,b1,false)&&
+ [!(exists v3:Nat. (transmit_current_speed(v3)||transmit_speed_limit(v3))
+ ||(ATPActive||ATPInactive)
+ ||transmit_train_type(freight)||transmit_train_type(other))]X(vm,vc,b1,b2)&&
+ (val(b1==true)&&val(b2==true)&&val(vc<vm+20)=>mu Y.[!bell_reminder]Y&&<true>true);

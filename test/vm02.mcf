@@ -1,0 +1,2 @@
+[true*.enter_ERTMS]mu X.[!ATPInactive]X&&<true>true &&
+[true*.leave_ERTMS]mu X.[!ATPActive]X&&<true>true

@@ -1,0 +1,7 @@
+nu X(b1:Bool=true).
+[ATPActive]X(true)&&
+[ATPInactive]X(false)&&
+([val(b1)&&transmit_speed_pulses(sixty)]mu X.[!send_allowed_speed_ERTMS(60)]X&&<true>true)&&
+([val(b1)&&transmit_speed_pulses(eighty)]mu X.[!send_allowed_speed_ERTMS(80)]X&&<true>true)&&
+([val(b1)&&transmit_speed_pulses(onethirty)]mu X.[!send_allowed_speed_ERTMS(130)]X&&<true>true)&&
+([val(b1)&&transmit_speed_pulses(oneforty)]mu X.[!send_allowed_speed_ERTMS(140)]X&&<true>true)

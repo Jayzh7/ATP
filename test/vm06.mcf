@@ -1,0 +1,3 @@
+[(!ATPActive)*.instru_emergency_brake]false&&
+[(!transmit_train_type(freight))*.safe_speed.instru_emergency_brake]false&&
+[true*.speeding.(!transmit_brake_status(braking))*.(!safe_speed)*.instru_emergency_brake]false

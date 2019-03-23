@@ -1,0 +1,10 @@
+nu X(vm:Nat=0,vc:Nat=0,b1:Bool=true,b2:Bool=true).
+forall v1:Nat. [transmit_current_speed(v1)]X(vm,v1,b1,b2)&&
+forall v2:Nat. [transmit_speed_limit(v2)]X(v2,vc,b1,b2)&&
+[!(exists v3:Nat. transmit_current_speed(v3)||transmit_speed_limit(v3))]X(vm,vc,b1,b2)&&
+[ATPActive]X(vm,vc,true,b2)&&
+[ATPInactive]X(vm,vc,false,b2)&&
+[transmit_train_type(freight)]X(vm,vc,b1,true)&&
+[transmit_train_type(other)]X(vm,vc,b1,false)&&
+(val(vc>vm)&&val(b1)=>mu X.[!speeding]X&&<true>true)&&
+(val(vc<vm+20)&&val(b1)&&val(b2)=>mu X.[!safe_speed]X&&<true>true)

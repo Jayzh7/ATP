@@ -1,0 +1,4 @@
+nu X(b1:Bool=true).
+[ATPActive]X(true)&&
+[ATPInactive]X(false)&&
+([val(b1)&&transmit_speed_pulses(sixty)]mu X.[!transmit_speed_limit(60)]X&&<true>true)
